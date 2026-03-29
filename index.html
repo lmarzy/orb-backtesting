@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORB Backtesting</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #222230;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --accent-blue: #4f8ef7;
+    --accent-purple: #9b6dff;
+    --accent-green: #2dd4a0;
+    --accent-red: #f75f6e;
+    --accent-yellow: #f7c94f;
+    --win: #2dd4a0;
+    --loss: #f75f6e;
+    --above: #4f8ef7;
+    --below: #f75f6e;
+    --bullish: #2dd4a0;
+    --bearish: #f75f6e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .logo span:first-child { color: var(--accent-blue); }
+  .logo span:last-child { color: var(--text); font-weight: 400; }
+
+  .upload-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .upload-btn input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+
+  /* MAIN */
+  main { padding: 28px 32px; }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
+  .stat-card:nth-child(2) .stat-value { color: var(--accent-purple); }
+  .stat-card:nth-child(3) .stat-value { color: var(--accent-yellow); }
+  .stat-card:nth-child(4) .stat-value { color: var(--win); }
+  .stat-card:nth-child(5) .stat-value { color: var(--loss); }
+  .stat-card:nth-child(6) .stat-value { color: var(--accent-purple); }
+
+  /* PANEL */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .session-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .session-tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+    border: none;
+    background: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .session-tab.active { background: var(--surface); color: var(--text); }
+  .session-tab .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-asia { background: var(--accent-yellow); }
+  .dot-london { background: var(--accent-blue); }
+  .dot-ny { background: var(--accent-purple); }
+
+  /* FILTERS */
+  .filters {
+    padding: 16px 20px;
+    display: flex;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .filter-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    min-width: 160px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5a7a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+  .filter-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    width: 90px;
+  }
+  .filter-select:focus, .filter-input:focus { outline: none; border-color: var(--accent-blue); }
+
+  /* TP/SL LINKED CONTROL */
+  .tpsl-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tpsl-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tpsl-inputs-wrap {
+    display: flex;
+    align-items: center;
+    height: 36px;
+  }
+  .tpsl-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    width: 72px;
+    height: 36px;
+    text-align: center;
+  }
+  .tpsl-input:focus { outline: none; border-color: var(--accent-blue); }
+  .tpsl-input.tp {
+    border-radius: 8px 0 0 8px;
+  }
+  .tpsl-input.sl {
+    border-radius: 0 8px 8px 0;
+    border-left: none;
+  }
+  .lock-btn {
+    width: 30px;
+    height: 36px;
+    flex-shrink: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-blue);
+    transition: color 0.15s;
+  }
+  .lock-btn:hover { color: var(--text); }
+  .lock-btn.unlinked { color: var(--muted); }
+  .lock-btn svg { width: 13px; height: 13px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 2;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    animation: fadeRow 0.3s ease both;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+  tbody tr:hover { background: var(--surface2) !important; }
+
+  /* Win/Loss row tint */
+  tbody tr.row-win  { background: rgba(45,212,160,0.04); }
+  tbody tr.row-loss { background: rgba(247,95,110,0.04); }
+  tbody tr.row-win:nth-child(even)  { background: rgba(45,212,160,0.06); }
+  tbody tr.row-loss:nth-child(even) { background: rgba(247,95,110,0.06); }
+  tbody tr.row-win:hover  { background: rgba(45,212,160,0.1) !important; }
+  tbody tr.row-loss:hover { background: rgba(247,95,110,0.1) !important; }
+
+  @keyframes fadeRow {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  td {
+    padding: 13px 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .day-name { font-weight: 600; color: var(--text); }
+  .date-num { color: var(--muted); }
+
+  /* Range bar cell */
+  .range-cell { min-width: 130px; }
+  .range-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .range-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-purple);
+    min-width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .range-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 40px;
+  }
+  .range-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+    transition: width 0.4s ease;
+  }
+
+  .time-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-yellow);
+  }
+
+  .no-breakout {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pill-bullish  { background: rgba(45,212,160,0.1);  color: var(--bullish); }
+  .pill-bearish  { background: rgba(247,95,110,0.1);  color: var(--bearish); }
+  .pill-above    { background: rgba(79,142,247,0.1);  color: var(--above); }
+  .pill-below    { background: rgba(247,95,110,0.1);  color: var(--below); }
+  .pill-win      { background: rgba(45,212,160,0.1);  color: var(--win); }
+  .pill-loss     { background: rgba(247,95,110,0.1);  color: var(--loss); }
+  .pill-na       { background: rgba(90,90,122,0.15);  color: var(--muted); }
+  .pill-yes      { background: rgba(79,142,247,0.1);  color: var(--accent-blue); }
+  .pill-no       { background: rgba(90,90,122,0.15);  color: var(--muted); }
+
+  /* SPARKLINE STREAK */
+  .sparkline {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-wrap: wrap;
+    max-width: 260px;
+  }
+  .spark-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .spark-dot.w { background: var(--win); }
+  .spark-dot.l { background: var(--loss); }
+  .spark-dot.n { background: var(--border); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  /* LOADING */
+  .loading {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted); font-size: 13px;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CANDLE DETAIL */
+  .candle-detail {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .candle-detail span { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 600px) {
+    header { padding: 16px; }
+    main { padding: 16px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>ORB</span> <span>Backtesting</span></div>
+  <label class="upload-btn">
+    Upload CSV
+    <input type="file" accept=".csv" id="csvInput">
+  </label>
+</header>
+
+<main>
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-value" id="s-sessions">—</div><div class="stat-label">Sessions</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-avgrange">—</div><div class="stat-label">Avg Range</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-avgtime">—</div><div class="stat-label">Avg Time</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-wins">—</div><div class="stat-label">Wins</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-losses">—</div><div class="stat-label">Losses</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-winpct">—</div><div class="stat-label">Win %</div></div>
+  </div>
+  <div id="sparklineRow" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; margin-bottom:24px; display:flex; align-items:center; gap:12px;">
+    <span style="font-size:10px;font-weight:600;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;flex-shrink:0;">Streak</span>
+    <div class="sparkline" id="sparkline"></div>
+  </div>
+
+  <!-- TABLE PANEL -->
+  <div class="panel">
+    <div class="panel-header">
+
+      <div class="session-tabs">
+        <button class="session-tab" onclick="setSession('asia')"><span class="dot dot-asia"></span>Asia</button>
+        <button class="session-tab active" onclick="setSession('london')"><span class="dot dot-london"></span>London</button>
+        <button class="session-tab" onclick="setSession('ny')"><span class="dot dot-ny"></span>New York</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <div class="filter-label">Month</div>
+        <select class="filter-select" id="monthFilter" onchange="renderTable()">
+          <option value="all">All Months</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Opening</div>
+        <select class="filter-select" id="openingFilter" onchange="reprocessData()">
+          <option value="5">5 minute</option>
+          <option value="15" selected>15 minute</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Closing</div>
+        <select class="filter-select" id="closingFilter" onchange="reprocessData()">
+          <option value="1">1 minute</option>
+          <option value="2">2 minute</option>
+          <option value="3">3 minute</option>
+          <option value="5" selected>5 minute</option>
+        </select>
+      </div>
+      <div class="tpsl-group">
+        <div class="tpsl-label">TP / SL (pts)</div>
+        <div class="tpsl-inputs-wrap" id="tpslWrap">
+          <input type="number" class="tpsl-input tp" id="tpInput" value="20" min="1" oninput="onTpSlChange('tp')">
+          <button class="lock-btn" id="lockBtn" onclick="toggleLock()" title="Link / unlink TP and SL">
+            <svg id="lockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </button>
+          <input type="number" class="tpsl-input sl" id="slInput" value="20" min="1" oninput="onTpSlChange('sl')">
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div id="tableContainer">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <div class="empty-title">No data loaded</div>
+          <div class="empty-sub">Upload your 1-minute NQ CSV to begin backtesting</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────
+let rawData = null;       // parsed 1-min candles for all days
+let results = [];         // computed per-day results
+let currentSession = 'london';
+
+const SESSION_CONFIG = {
+  asia:   { start: '14:00' },
+  london: { start: '02:00' },
+  ny:     { start: '08:30' },
+};
+
+// ─── CSV Parse ───────────────────────────────────────────────────────────
+function parseCSVLine(line) {
+  // Proper CSV parser: handles "24,508.00" quoted fields and \r\n
+  const cols = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; continue; }
+    if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; continue; }
+    if (ch === '\r') continue;
+    cur += ch;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+function parseCSV(text) {
+  // Normalise line endings
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 6) continue;
+    const dateStr = cols[0].trim();
+    const open  = parseFloat(cols[2].replace(/,/g,''));
+    const high  = parseFloat(cols[3].replace(/,/g,''));
+    const low   = parseFloat(cols[4].replace(/,/g,''));
+    const close = parseFloat(cols[5].replace(/,/g,''));
+    if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) continue;
+
+    // Parse date: "3/3/2026 3:00 am" / "3/3/2026 11:59 pm"
+    const dt = parseEST(dateStr);
+    if (!dt) continue;
+    rows.push({ dt, open, high, low, close });
+  }
+  rows.sort((a, b) => a.dt - b.dt);
+  return rows;
+}
+
+function parseEST(str) {
+  // Format: "M/D/YYYY H:MM am/pm" or "M/D/YYYY HH:MM am/pm"
+  const m = str.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)\s*(am|pm)/i);
+  if (!m) return null;
+  let [, mo, day, yr, hr, min, ampm] = m;
+  hr = parseInt(hr); min = parseInt(min);
+  if (ampm.toLowerCase() === 'pm' && hr !== 12) hr += 12;
+  if (ampm.toLowerCase() === 'am' && hr === 12) hr = 0;
+  return new Date(parseInt(yr), parseInt(mo)-1, parseInt(day), hr, min, 0);
+}
+
+function dateKey(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function timeHHMM(dt) {
+  return `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+
+// ─── Processing ──────────────────────────────────────────────────────────
+function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMins) {
+  const cfg = SESSION_CONFIG[session];
+  const [sh, sm] = cfg.start.split(':').map(Number);
+  const [yr, mo, dy] = dateStr.split('-').map(Number);
+
+  const lorStart = new Date(yr, mo-1, dy, sh, sm, 0);
+  const lorEnd   = new Date(lorStart.getTime() + openingMins * 60000);
+
+  // LOR candles
+  const lor = candles1m.filter(c => c.dt >= lorStart && c.dt < lorEnd);
+  if (lor.length === 0) return null;
+
+  const rangeHigh = Math.max(...lor.map(c => c.high));
+  const rangeLow  = Math.min(...lor.map(c => c.low));
+
+  // Determine opening range candle direction (bias)
+  const lorOpen  = lor[0].open;
+  const lorClose = lor[lor.length-1].close;
+  const lorDir   = lorClose >= lorOpen ? 'Bullish' : 'Bearish';
+
+  // Build closing-timeframe candles after LOR
+  const afterLOR    = candles1m.filter(c => c.dt >= lorEnd);
+  const closingBars = buildNMin(afterLOR, closingMins);
+
+  // Find first full-body breakout
+  let breakCandle = null, breakDir = null;
+  for (const fc of closingBars) {
+    if (fc.open > rangeHigh && fc.close > rangeHigh) {
+      breakCandle = fc; breakDir = 'Above'; break;
+    }
+    if (fc.open < rangeLow && fc.close < rangeLow) {
+      breakCandle = fc; breakDir = 'Below'; break;
+    }
+  }
+
+  if (!breakCandle) return {
+    dateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
+    lorDir, breakDir: null, breakCandle: null,
+    winLoss: null, minutesToBreak: null,
+    flip: null, flipWin: null
+  };
+
+  // Entry at close of breakout candle
+  const entry = breakCandle.close;
+  const isLong = breakDir === 'Above';
+  const tpPrice = isLong ? entry + tp : entry - tp;
+  const slPrice = isLong ? entry - sl : entry + sl;
+
+  // Minutes from LOR end to breakout candle close
+  const minutesToBreak = Math.round((breakCandle.endDt - lorEnd) / 60000);
+
+  // Check 1-min candles after breakout candle closes
+  const afterBreak = candles1m.filter(c => c.dt > breakCandle.endDt);
+  let winLoss = null;
+  for (const c of afterBreak) {
+    const tpHitL = isLong ? c.high >= tpPrice : c.low  <= tpPrice;
+    const slHit  = isLong ? c.low  <= slPrice : c.high >= slPrice;
+    if (tpHitL && slHit) { winLoss = 'Loss'; break; }
+    if (tpHitL)           { winLoss = 'Win';  break; }
+    if (slHit)            { winLoss = 'Loss'; break; }
+  }
+  if (winLoss === null) winLoss = 'Loss';
+
+  // Flip logic
+  let flip = null, flipWin = null;
+  const expectedDir = lorDir === 'Bullish' ? 'Above' : 'Below';
+  flip    = breakDir !== expectedDir ? 'Yes' : 'No';
+  flipWin = flip === 'Yes' ? winLoss : null;
+
+  return {
+    dateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
+    lorDir, breakDir, breakCandle, entry, tpPrice, slPrice,
+    winLoss, minutesToBreak, flip, flipWin
+  };
+}
+
+function buildNMin(candles1m, n) {
+  if (candles1m.length === 0) return [];
+  const buckets = {};
+  for (const c of candles1m) {
+    const mins = c.dt.getHours() * 60 + c.dt.getMinutes();
+    const bucket = Math.floor(mins / n) * n;
+    const bh = Math.floor(bucket / 60), bm = bucket % 60;
+    const key = `${c.dt.getFullYear()}-${c.dt.getMonth()}-${c.dt.getDate()}-${bucket}`;
+    if (!buckets[key]) buckets[key] = { candles: [], bh, bm, date: c.dt };
+    buckets[key].candles.push(c);
+  }
+  return Object.values(buckets).sort((a, b) => {
+    const ta = a.date.getFullYear()*1e10 + a.date.getMonth()*1e8 + a.date.getDate()*1e6 + a.bh*60+a.bm;
+    const tb = b.date.getFullYear()*1e10 + b.date.getMonth()*1e8 + b.date.getDate()*1e6 + b.bh*60+b.bm;
+    return ta - tb;
+  }).map(b => {
+    const cs = b.candles;
+    const endMin = b.bh * 60 + b.bm + (n - 1);
+    const endDt  = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate(),
+                            Math.floor(endMin / 60), endMin % 60, 0);
+    return {
+      open: cs[0].open,
+      high: Math.max(...cs.map(c => c.high)),
+      low:  Math.min(...cs.map(c => c.low)),
+      close: cs[cs.length-1].close,
+      startDt: cs[0].dt,
+      endDt,
+      candles: cs
+    };
+  });
+}
+
+// Group 1-min candles by calendar date
+function groupByDate(rows) {
+  const map = {};
+  for (const r of rows) {
+    const k = dateKey(r.dt);
+    if (!map[k]) map[k] = [];
+    map[k].push(r);
+  }
+  return map;
+}
+
+// ─── TP/SL Lock ──────────────────────────────────────────────────────────
+let tpslLinked = true;
+
+function toggleLock() {
+  tpslLinked = !tpslLinked;
+  const btn  = document.getElementById('lockBtn');
+  const icon = document.getElementById('lockIcon');
+
+  btn.classList.toggle('unlinked', !tpslLinked);
+
+  if (tpslLinked) {
+    document.getElementById('slInput').value = document.getElementById('tpInput').value;
+    icon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`;
+    reprocessData();
+  } else {
+    icon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`;
+  }
+}
+
+function onTpSlChange(which) {
+  if (tpslLinked) {
+    const val = document.getElementById(which === 'tp' ? 'tpInput' : 'slInput').value;
+    document.getElementById(which === 'tp' ? 'slInput' : 'tpInput').value = val;
+  }
+  reprocessData();
+}
+
+
+function reprocessData() {
+  if (!rawData) return;
+  const tp          = parseFloat(document.getElementById('tpInput').value) || 20;
+  const sl          = parseFloat(document.getElementById('slInput').value) || 20;
+  const openingMins = parseInt(document.getElementById('openingFilter').value) || 15;
+  const closingMins = parseInt(document.getElementById('closingFilter').value) || 5;
+  const byDate      = groupByDate(rawData);
+  const dates       = Object.keys(byDate).sort();
+
+  results = [];
+  for (const d of dates) {
+    const r = processDay(byDate[d], d, tp, sl, currentSession, openingMins, closingMins);
+    if (r) results.push(r);
+  }
+
+  populateMonthFilter();
+  renderTable();
+  updateStats();
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────
+function populateMonthFilter() {
+  const sel = document.getElementById('monthFilter');
+  const months = [...new Set(results.map(r => r.dateStr.slice(0, 7)))].sort();
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">All Months</option>';
+  for (const m of months) {
+    const [yr, mo] = m.split('-');
+    const label = new Date(parseInt(yr), parseInt(mo)-1, 1).toLocaleString('default',{month:'short',year:'numeric'});
+    const count = results.filter(r => r.dateStr.startsWith(m)).length;
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = `${label} (${count})`;
+    if (m === current) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function filteredResults() {
+  const mo = document.getElementById('monthFilter').value;
+  if (mo === 'all') return results;
+  return results.filter(r => r.dateStr.startsWith(mo));
+}
+
+// ─── Animated counter ────────────────────────────────────────────────────
+function animateCounter(el, target, isFloat, suffix) {
+  const duration = 500;
+  const start = performance.now();
+  const from = parseFloat(el.dataset.current || 0) || 0;
+  const to   = parseFloat(target) || 0;
+  el.dataset.current = to;
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const val = from + (to - from) * ease;
+    el.textContent = (isFloat ? val.toFixed(2) : Math.round(val)) + (suffix || '');
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────
+function updateStats() {
+  const fr = filteredResults();
+  const sessions  = fr.length;
+  const withBreak = fr.filter(r => r.breakDir);
+  const wins      = withBreak.filter(r => r.winLoss === 'Win').length;
+  const losses    = withBreak.filter(r => r.winLoss === 'Loss').length;
+  const avgRange  = fr.length ? fr.reduce((a,r)=>a+r.range,0)/fr.length : 0;
+  const avgTimeArr = withBreak.filter(r => r.minutesToBreak !== null).map(r => r.minutesToBreak);
+  const avgTime   = avgTimeArr.length ? Math.round(avgTimeArr.reduce((a,b)=>a+b,0)/avgTimeArr.length) : null;
+  const winPct    = (wins + losses) ? (wins/(wins+losses))*100 : null;
+
+  animateCounter(document.getElementById('s-sessions'), sessions, false, '');
+  animateCounter(document.getElementById('s-avgrange'), avgRange, true, '');
+  document.getElementById('s-avgtime').textContent = avgTime !== null ? avgTime + 'm' : '—';
+  animateCounter(document.getElementById('s-wins'),    wins,    false, '');
+  animateCounter(document.getElementById('s-losses'),  losses,  false, '');
+  document.getElementById('s-winpct').textContent = winPct !== null ? winPct.toFixed(1) + '%' : '—';
+
+  // Sparkline
+  const sparkRow = document.getElementById('sparklineRow');
+  const sparkEl  = document.getElementById('sparkline');
+  if (withBreak.length > 0) {
+    sparkRow.style.display = 'flex';
+    sparkEl.innerHTML = withBreak.map(r => {
+      const cls = r.winLoss === 'Win' ? 'w' : r.winLoss === 'Loss' ? 'l' : 'n';
+      const title = r.winLoss || 'N/A';
+      return `<div class="spark-dot ${cls}" title="${r.dateStr}: ${title}"></div>`;
+    }).join('');
+  } else {
+    sparkRow.style.display = 'none';
+  }
+}
+
+// ─── Render Table ─────────────────────────────────────────────────────────
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function pill(cls, text) {
+  return `<span class="pill pill-${cls.toLowerCase()}">${text}</span>`;
+}
+
+function renderTable() {
+  updateStats();
+  const fr = filteredResults();
+  if (fr.length === 0) {
+    document.getElementById('tableContainer').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No sessions found</div>
+        <div class="empty-sub">Try a different month or upload a CSV with more data</div>
+      </div>`;
+    return;
+  }
+
+  const maxRange = Math.max(...fr.map(r => r.range));
+
+  let rows = '';
+  fr.forEach((r, i) => {
+    const dt      = new Date(r.dateStr + 'T12:00:00');
+    const dayName = DAYS[dt.getDay()];
+    const dateNum = dt.getDate();
+    const rangeCell = `<span class="range-num">${r.range.toFixed(2)}</span>`;
+
+    const lorDirPill   = pill(r.lorDir, r.lorDir.toUpperCase());
+    const breakDirPill = r.breakDir ? pill(r.breakDir, r.breakDir.toUpperCase()) : `<span class="no-breakout">No breakout</span>`;
+    const timeBadge    = r.minutesToBreak !== null ? `<span class="time-badge">${r.minutesToBreak}m</span>` : `<span style="color:var(--muted);font-size:12px;">—</span>`;
+    const wlPill       = r.winLoss ? pill(r.winLoss, r.winLoss.toUpperCase()) : `<span style="color:var(--muted);font-size:12px;">—</span>`;
+
+    const rowClass = r.winLoss === 'Win' ? 'row-win' : r.winLoss === 'Loss' ? 'row-loss' : '';
+    const delay    = Math.min(i * 18, 400);
+
+    rows += `<tr class="${rowClass}" style="animation-delay:${delay}ms">
+      <td class="day-name">${dayName}</td>
+      <td class="date-num">${dateNum}</td>
+      <td class="range-cell">${rangeCell}</td>
+      <td>${lorDirPill}</td>
+      <td>${breakDirPill}</td>
+      <td>${timeBadge}</td>
+      <td>${wlPill}</td>
+    </tr>`;
+  });
+
+  document.getElementById('tableContainer').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Date</th>
+          <th>Range (pts)</th>
+          <th>15M Direction</th>
+          <th>Close</th>
+          <th>Time</th>
+          <th>Win / Loss</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ─── Session Tabs ─────────────────────────────────────────────────────────
+function setSession(s) {
+  currentSession = s;
+  document.querySelectorAll('.session-tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (rawData) reprocessData();
+}
+
+// ─── File Upload ─────────────────────────────────────────────────────────
+document.getElementById('csvInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('tableContainer').innerHTML = '<div class="loading"><div class="spinner"></div>Processing data…</div>';
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    rawData = parseCSV(ev.target.result);
+    reprocessData();
+  };
+  reader.readAsText(file);
+});
+</script>
+</body>
+</html>
