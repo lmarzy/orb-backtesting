@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ORB Backtesting</title>
+<title>ORB Backtester</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111118'/%3E%3C!-- candles --%3E%3C!-- red candle --%3E%3Crect x='5' y='14' width='4' height='8' rx='0.5' fill='%23f75f6e'/%3E%3Cline x1='7' y1='11' x2='7' y2='14' stroke='%23f75f6e' stroke-width='1.2'/%3E%3Cline x1='7' y1='22' x2='7' y2='24' stroke='%23f75f6e' stroke-width='1.2'/%3E%3C!-- green candle --%3E%3Crect x='12' y='10' width='4' height='10' rx='0.5' fill='%232dd4a0'/%3E%3Cline x1='14' y1='7' x2='14' y2='10' stroke='%232dd4a0' stroke-width='1.2'/%3E%3Cline x1='14' y1='20' x2='14' y2='23' stroke='%232dd4a0' stroke-width='1.2'/%3E%3C!-- red candle --%3E%3Crect x='19' y='13' width='4' height='7' rx='0.5' fill='%23f75f6e'/%3E%3Cline x1='21' y1='10' x2='21' y2='13' stroke='%23f75f6e' stroke-width='1.2'/%3E%3Cline x1='21' y1='20' x2='21' y2='22' stroke='%23f75f6e' stroke-width='1.2'/%3E%3C!-- green candle --%3E%3Crect x='26' y='8' width='4' height='11' rx='0.5' fill='%232dd4a0'/%3E%3Cline x1='28' y1='5' x2='28' y2='8' stroke='%232dd4a0' stroke-width='1.2'/%3E%3Cline x1='28' y1='19' x2='28' y2='22' stroke='%232dd4a0' stroke-width='1.2'/%3E%3C!-- range lines --%3E%3Cline x1='3' y1='9' x2='29' y2='9' stroke='%234f8ef7' stroke-width='0.8' stroke-dasharray='2 1.5'/%3E%3Cline x1='3' y1='23' x2='29' y2='23' stroke='%234f8ef7' stroke-width='0.8' stroke-dasharray='2 1.5'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -26,7 +27,19 @@
     --bearish: #f75f6e;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; cursor: inherit; }
+
+  body { cursor: default; }
+
+  a, button, label, select,
+  [onclick], .session-tab, .lock-btn, .upload-btn,
+  .filter-select, tbody tr,
+  a *, button *, label *, [onclick] *,
+  .session-tab *, .lock-btn *, .upload-btn *,
+  tbody tr * { cursor: pointer; }
+
+  input[type="number"], textarea { cursor: text; }
+  input[type="file"], .upload-btn, .upload-btn * { cursor: pointer !important; }
 
   body {
     font-family: 'DM Sans', sans-serif;
@@ -41,38 +54,72 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 32px;
+    padding: 0 32px;
+    height: 60px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
 
   .logo {
-    font-family: 'Space Mono', monospace;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
   }
-  .logo span:first-child { color: var(--accent-blue); }
-  .logo span:last-child { color: var(--text); font-weight: 400; }
+  .logo-main {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .logo-accent {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-blue);
+  }
+  .logo-orb { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent-blue); }
+  .logo-divider { width: 1px; height: 14px; background: var(--border); align-self: center; }
+  .logo-sub { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0.02em; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tz-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tz-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
 
   .upload-btn {
-    background: var(--surface2);
+    background: transparent;
     border: 1px solid var(--border);
-    color: var(--text);
-    padding: 10px 20px;
-    border-radius: 8px;
+    color: var(--muted);
+    padding: 8px 18px;
+    border-radius: 6px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
+    letter-spacing: 0.04em;
     cursor: pointer;
     transition: all 0.15s;
-    position: relative;
-    overflow: hidden;
+    white-space: nowrap;
   }
   .upload-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-  .upload-btn input[type=file] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
-  }
 
   /* MAIN */
   main { padding: 28px 32px; }
@@ -80,7 +127,7 @@
   /* STATS ROW */
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 12px;
     margin-bottom: 24px;
   }
@@ -114,6 +161,8 @@
   .stat-card:nth-child(4) .stat-value { color: var(--win); }
   .stat-card:nth-child(5) .stat-value { color: var(--loss); }
   .stat-card:nth-child(6) .stat-value { color: var(--accent-purple); }
+  .stat-card:nth-child(7) .stat-value { color: var(--accent-yellow); }
+  .stat-card:nth-child(8) .stat-value { color: var(--accent-yellow); }
 
   /* PANEL */
   .panel {
@@ -212,6 +261,73 @@
   }
   .filter-select:focus, .filter-input:focus { outline: none; border-color: var(--accent-blue); }
 
+  /* OFFSET STEPPER */
+  .offset-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .offset-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .offset-wrap {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    gap: 0;
+  }
+  .offset-btn {
+    width: 32px;
+    height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .offset-btn:first-child { border-radius: 8px 0 0 8px; }
+  .offset-btn:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
+  .offset-btn:hover { background: var(--border); color: var(--accent-blue); }
+  .offset-display {
+    height: 36px;
+    min-width: 80px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-left: none;
+    border-right: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+  .offset-steps {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .offset-steps.zero { color: var(--muted); }
+  .offset-steps.positive { color: var(--accent-green); }
+  .offset-steps.negative { color: var(--accent-yellow); }
+  .offset-time {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1;
+  }
+
   /* TP/SL LINKED CONTROL */
   .tpsl-group {
     display: flex;
@@ -266,7 +382,69 @@
   }
   .lock-btn:hover { color: var(--text); }
   .lock-btn.unlinked { color: var(--muted); }
+  .lock-btn.disabled { color: var(--border); pointer-events: none; }
   .lock-btn svg { width: 13px; height: 13px; }
+
+  /* RANGE SL TOGGLE */
+  .tpsl-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .range-sl-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    margin-left: 2px;
+  }
+  .range-sl-toggle input[type=checkbox] {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface2);
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .range-sl-toggle input[type=checkbox]:checked {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+  }
+  .range-sl-toggle input[type=checkbox]:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 1px;
+    width: 5px; height: 8px;
+    border: 2px solid #fff;
+    border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+  .range-sl-toggle span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-transform: uppercase;
+    transition: color 0.15s;
+  }
+  .range-sl-toggle:has(input:checked) span { color: var(--accent-blue); }
+
+  .tpsl-input.sl.range-mode {
+    color: var(--muted);
+    background: var(--surface);
+    cursor: not-allowed;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
 
   /* TABLE */
   .table-wrap { overflow-x: auto; }
@@ -442,7 +620,7 @@
   .candle-detail span { color: var(--text); }
 
   @media (max-width: 900px) {
-    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .stats-row { grid-template-columns: repeat(4, 1fr); }
   }
   @media (max-width: 600px) {
     header { padding: 16px; }
@@ -454,11 +632,29 @@
 <body>
 
 <header>
-  <div class="logo"><span>ORB</span> <span>Backtesting</span></div>
-  <label class="upload-btn">
-    Upload CSV
-    <input type="file" accept=".csv" id="csvInput">
-  </label>
+  <div class="logo">
+    <span class="logo-accent">ORB</span>
+    <span class="logo-main">Backtester</span>
+  </div>
+  <div class="header-right">
+    <div class="tz-select-wrap">
+      <span class="tz-label">Timezone</span>
+      <select class="filter-select" id="tzSelect" onchange="onTimezoneChange()" style="min-width:200px;font-size:12px;">
+        <option value="America/Chicago">CT — Chicago</option>
+        <option value="America/New_York">ET — New York</option>
+        <option value="Europe/London" selected>GMT/BST — London</option>
+        <option value="Europe/Paris">CET/CEST — Paris/Berlin</option>
+        <option value="Europe/Helsinki">EET/EEST — Helsinki</option>
+        <option value="Europe/Moscow">MSK — Moscow</option>
+        <option value="Asia/Kolkata">IST — India</option>
+        <option value="Asia/Singapore">SGT — Singapore</option>
+        <option value="Asia/Tokyo">JST — Tokyo</option>
+        <option value="Australia/Sydney">AEST/AEDT — Sydney</option>
+      </select>
+    </div>
+    <button class="upload-btn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
+    <input type="file" accept=".csv" id="csvInput" style="display:none">
+  </div>
 </header>
 
 <main>
@@ -470,6 +666,8 @@
     <div class="stat-card"><div class="stat-value" id="s-wins">—</div><div class="stat-label">Wins</div></div>
     <div class="stat-card"><div class="stat-value" id="s-losses">—</div><div class="stat-label">Losses</div></div>
     <div class="stat-card"><div class="stat-value" id="s-winpct">—</div><div class="stat-label">Win %</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-flips">—</div><div class="stat-label">Flips</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-flipwinpct">—</div><div class="stat-label">Flip Win %</div></div>
   </div>
   <div id="sparklineRow" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; margin-bottom:24px; display:flex; align-items:center; gap:12px;">
     <span style="font-size:10px;font-weight:600;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;flex-shrink:0;">Streak</span>
@@ -511,7 +709,13 @@
         </select>
       </div>
       <div class="tpsl-group">
-        <div class="tpsl-label">TP / SL (pts)</div>
+        <div class="tpsl-label">
+          TP / SL (pts)
+          <label class="range-sl-toggle" title="Use opposite end of range as SL">
+            <input type="checkbox" id="rangeSLCheck" onchange="onRangeSLToggle()">
+            <span>Range SL</span>
+          </label>
+        </div>
         <div class="tpsl-inputs-wrap" id="tpslWrap">
           <input type="number" class="tpsl-input tp" id="tpInput" value="20" min="1" oninput="onTpSlChange('tp')">
           <button class="lock-btn" id="lockBtn" onclick="toggleLock()" title="Link / unlink TP and SL">
@@ -521,6 +725,17 @@
             </svg>
           </button>
           <input type="number" class="tpsl-input sl" id="slInput" value="20" min="1" oninput="onTpSlChange('sl')">
+        </div>
+      </div>
+      <div class="offset-group">
+        <div class="offset-label">Time Offset</div>
+        <div class="offset-wrap">
+          <button class="offset-btn" onclick="adjustOffset(-1)">−</button>
+          <div class="offset-display">
+            <span class="offset-steps zero" id="offsetSteps">0</span>
+            <span class="offset-time" id="offsetTime">02:00</span>
+          </div>
+          <button class="offset-btn" onclick="adjustOffset(1)">+</button>
         </div>
       </div>
     </div>
@@ -543,11 +758,91 @@ let rawData = null;       // parsed 1-min candles for all days
 let results = [];         // computed per-day results
 let currentSession = 'london';
 
+// CSV data is in CT (UTC-6). Session times stored in UTC, converted to CT for processing.
+const CSV_UTC_OFFSET = -6; // CT = UTC-6
+
 const SESSION_CONFIG = {
-  asia:   { start: '14:00' },
-  london: { start: '02:00' },
-  ny:     { start: '08:30' },
+  asia:   { utcStart: '00:00' }, // 00:00 UTC = Tokyo open = 18:00 CT (prev calendar day)
+  london: { utcStart: '08:00' }, // 08:00 UTC = London open = 02:00 CT
+  ny:     { utcStart: '14:30' }, // 14:30 UTC = NY open     = 08:30 CT
 };
+
+// Get UTC offset in minutes for a given IANA timezone on a specific UTC date
+function getIANAOffsetMins(ianaZone, utcDate) {
+  // Format the date in the target zone and UTC, then diff
+  const opts = { timeZone: ianaZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false };
+  const utcOpts = { timeZone: 'UTC', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false };
+
+  const toMins = (o, d) => {
+    const p = new Intl.DateTimeFormat('en-US', o).formatToParts(d)
+      .reduce((a, x) => { a[x.type] = parseInt(x.value); return a; }, {});
+    return p.day * 1440 + p.hour * 60 + p.minute;
+  };
+
+  let diff = toMins(opts, utcDate) - toMins(utcOpts, utcDate);
+  // Handle day boundary wrapping
+  if (diff > 720)  diff -= 1440;
+  if (diff < -720) diff += 1440;
+  return diff;
+}
+
+function getUserTzOffset(utcDate) {
+  const tz = document.getElementById('tzSelect').value;
+  return getIANAOffsetMins(tz, utcDate || new Date()) / 60;
+}
+
+// Convert a UTC HH:MM to user's local display time, DST-aware
+function utcToUserTz(utcHHMM, extraMins, refDateStr) {
+  const [h, m] = utcHHMM.split(':').map(Number);
+  // Build a reference UTC date to compute the correct DST offset
+  const refDate = refDateStr
+    ? new Date(`${refDateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00Z`)
+    : new Date();
+  const userOffsetMins = getIANAOffsetMins(document.getElementById('tzSelect').value, refDate);
+  const totalMins = ((h * 60 + m + userOffsetMins + (extraMins || 0)) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(totalMins / 60)).padStart(2,'0')}:${String(totalMins % 60).padStart(2,'0')}`;
+}
+
+// Get CT start time for a session including offset steps
+function getSessionCTStart(session, offsetSteps) {
+  const utcStart = SESSION_CONFIG[session].utcStart;
+  const [h, m] = utcStart.split(':').map(Number);
+  const totalMins = ((h * 60 + m + CSV_UTC_OFFSET * 60 + offsetSteps * 30) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(totalMins/60)).padStart(2,'0')}:${String(totalMins%60).padStart(2,'0')}`;
+}
+
+function onTimezoneChange() {
+  updateOffsetDisplay();
+  if (rawData) reprocessData();
+}
+
+function updateTzDropdownLabels() {
+  const sel = document.getElementById('tzSelect');
+  const now = new Date();
+  const zones = [
+    { value: 'America/Chicago',   label: 'CT — Chicago' },
+    { value: 'America/New_York',  label: 'ET — New York' },
+    { value: 'Europe/London',     label: 'GMT/BST — London' },
+    { value: 'Europe/Paris',      label: 'CET/CEST — Paris/Berlin' },
+    { value: 'Europe/Helsinki',   label: 'EET/EEST — Helsinki' },
+    { value: 'Europe/Moscow',     label: 'MSK — Moscow' },
+    { value: 'Asia/Kolkata',      label: 'IST — India' },
+    { value: 'Asia/Singapore',    label: 'SGT — Singapore' },
+    { value: 'Asia/Tokyo',        label: 'JST — Tokyo' },
+    { value: 'Australia/Sydney',  label: 'AEST/AEDT — Sydney' },
+  ];
+  Array.from(sel.options).forEach((opt, i) => {
+    const offsetMins = getIANAOffsetMins(zones[i].value, now);
+    const sign  = offsetMins >= 0 ? '+' : '-';
+    const abs   = Math.abs(offsetMins);
+    const hh    = Math.floor(abs / 60);
+    const mm    = abs % 60;
+    const label = mm > 0
+      ? `${zones[i].label} (UTC${sign}${hh}:${String(mm).padStart(2,'0')})`
+      : `${zones[i].label} (UTC${sign}${hh})`;
+    opt.textContent = label;
+  });
+}
 
 // ─── CSV Parse ───────────────────────────────────────────────────────────
 function parseCSVLine(line) {
@@ -609,12 +904,32 @@ function timeHHMM(dt) {
 }
 
 // ─── Processing ──────────────────────────────────────────────────────────
-function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMins) {
-  const cfg = SESSION_CONFIG[session];
-  const [sh, sm] = cfg.start.split(':').map(Number);
+function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMins, offsetSteps, useRangeSL) {
   const [yr, mo, dy] = dateStr.split('-').map(Number);
 
-  const lorStart = new Date(yr, mo-1, dy, sh, sm, 0);
+  // Compute LOR start directly from UTC session time + offset, converted to CT
+  const utcStart = SESSION_CONFIG[session].utcStart;
+  const [uh, um] = utcStart.split(':').map(Number);
+  const offsetMins = (offsetSteps || 0) * 30;
+
+  // UTC total mins including offset
+  const utcTotalMins  = uh * 60 + um + offsetMins;
+  const ctTotalMins   = utcTotalMins + CSV_UTC_OFFSET * 60; // CSV_UTC_OFFSET = -6
+  const ctWrapped     = ((ctTotalMins % 1440) + 1440) % 1440;
+  const sh = Math.floor(ctWrapped / 60);
+  const sm = ctWrapped % 60;
+
+  // CSV candle date: CT time >= 12:00 means it falls on prev calendar day in the file
+  const dayOffset = (ctTotalMins < 0 || ctWrapped >= 720) ? -1 : 0;
+  const lorDate   = new Date(yr, mo - 1, dy + dayOffset);
+
+  // Display date = UTC date the session opens on (not the CT candle date)
+  // If UTC time wraps past midnight backwards (utcTotalMins < 0), show prev day
+  const utcDayOffset = utcTotalMins < 0 ? -1 : utcTotalMins >= 1440 ? 1 : 0;
+  const displayDate  = new Date(yr, mo - 1, dy + utcDayOffset);
+  const displayDateStr = `${displayDate.getFullYear()}-${String(displayDate.getMonth()+1).padStart(2,'0')}-${String(displayDate.getDate()).padStart(2,'0')}`;
+
+  const lorStart = new Date(lorDate.getFullYear(), lorDate.getMonth(), lorDate.getDate(), sh, sm, 0);
   const lorEnd   = new Date(lorStart.getTime() + openingMins * 60000);
 
   // LOR candles
@@ -645,41 +960,86 @@ function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMin
   }
 
   if (!breakCandle) return {
-    dateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
+    dateStr: displayDateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
     lorDir, breakDir: null, breakCandle: null,
     winLoss: null, minutesToBreak: null,
     flip: null, flipWin: null
   };
 
-  // Entry at close of breakout candle
-  const entry = breakCandle.close;
   const isLong = breakDir === 'Above';
-  const tpPrice = isLong ? entry + tp : entry - tp;
-  const slPrice = isLong ? entry - sl : entry + sl;
 
-  // Minutes from LOR end to breakout candle close
+  // Entry at close of breakout candle
+  const entry  = breakCandle.close;
+  const tpPrice = isLong ? entry + tp : entry - tp;
+  const slPrice = useRangeSL
+    ? (isLong ? rangeLow : rangeHigh)
+    : (isLong ? entry - sl : entry + sl);
+
+  // Minutes from LOR end to entry
   const minutesToBreak = Math.round((breakCandle.endDt - lorEnd) / 60000);
 
-  // Check 1-min candles after breakout candle closes
-  const afterBreak = candles1m.filter(c => c.dt > breakCandle.endDt);
+  // Check 1-min candles after entry
+  const afterEntry = candles1m.filter(c => c.dt > breakCandle.endDt);
   let winLoss = null;
-  for (const c of afterBreak) {
-    const tpHitL = isLong ? c.high >= tpPrice : c.low  <= tpPrice;
-    const slHit  = isLong ? c.low  <= slPrice : c.high >= slPrice;
-    if (tpHitL && slHit) { winLoss = 'Loss'; break; }
-    if (tpHitL)           { winLoss = 'Win';  break; }
-    if (slHit)            { winLoss = 'Loss'; break; }
+  for (const c of afterEntry) {
+    const tpHit = isLong ? c.high >= tpPrice : c.low  <= tpPrice;
+    const slHit = isLong ? c.low  <= slPrice : c.high >= slPrice;
+    if (tpHit && slHit) { winLoss = 'Loss'; break; }
+    if (tpHit)           { winLoss = 'Win';  break; }
+    if (slHit)           { winLoss = 'Loss'; break; }
   }
   if (winLoss === null) winLoss = 'Loss';
 
-  // Flip logic
-  let flip = null, flipWin = null;
-  const expectedDir = lorDir === 'Bullish' ? 'Above' : 'Below';
-  flip    = breakDir !== expectedDir ? 'Yes' : 'No';
-  flipWin = flip === 'Yes' ? winLoss : null;
+  // ── FLIP LOGIC: only if initial trade is a Loss ──
+  let flip = null, flipWin = null, flipEntry = null, flipTp = null, flipSl = null;
+
+  if (winLoss === 'Loss') {
+    // Find the candle where SL was hit (that's our start point for flip watch)
+    let slHitDt = null;
+    for (const c of afterEntry) {
+      const slHit = isLong ? c.low <= slPrice : c.high >= slPrice;
+      if (slHit) { slHitDt = c.dt; break; }
+    }
+
+    if (slHitDt) {
+      // Watch closing-timeframe candles after SL hit for opposite full-body breakout
+      const afterSL     = candles1m.filter(c => c.dt > slHitDt);
+      const flipBars    = buildNMin(afterSL, closingMins);
+      const flipIsLong  = !isLong; // opposite direction
+      let   flipCandle  = null;
+
+      for (const fc of flipBars) {
+        if (flipIsLong  && fc.open > rangeHigh && fc.close > rangeHigh) { flipCandle = fc; break; }
+        if (!flipIsLong && fc.open < rangeLow  && fc.close < rangeLow)  { flipCandle = fc; break; }
+      }
+
+      if (flipCandle) {
+        flip      = 'Yes';
+        flipEntry = flipCandle.close;
+        flipTp    = flipIsLong ? flipEntry + tp : flipEntry - tp;
+        flipSl    = useRangeSL
+          ? (flipIsLong ? rangeLow : rangeHigh)
+          : (flipIsLong ? flipEntry - sl : flipEntry + sl);
+
+        // Check outcome of flip trade
+        const afterFlip = candles1m.filter(c => c.dt > flipCandle.endDt);
+        flipWin = null;
+        for (const c of afterFlip) {
+          const tpHit = flipIsLong ? c.high >= flipTp : c.low  <= flipTp;
+          const slHit = flipIsLong ? c.low  <= flipSl : c.high >= flipSl;
+          if (tpHit && slHit) { flipWin = 'Loss'; break; }
+          if (tpHit)           { flipWin = 'Win';  break; }
+          if (slHit)           { flipWin = 'Loss'; break; }
+        }
+        if (flipWin === null) flipWin = 'Loss';
+      } else {
+        flip = 'No';
+      }
+    }
+  }
 
   return {
-    dateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
+    dateStr: displayDateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
     lorDir, breakDir, breakCandle, entry, tpPrice, slPrice,
     winLoss, minutesToBreak, flip, flipWin
   };
@@ -728,6 +1088,52 @@ function groupByDate(rows) {
   return map;
 }
 
+// ─── Time Offset ─────────────────────────────────────────────────────────
+let timeOffsetSteps = 0; // each step = 30 mins
+
+function adjustOffset(delta) {
+  timeOffsetSteps += delta;
+  updateOffsetDisplay();
+  if (rawData) reprocessData();
+}
+
+function updateOffsetDisplay() {
+  const offsetMins = timeOffsetSteps * 30;
+  const stepsEl = document.getElementById('offsetSteps');
+  const timeEl  = document.getElementById('offsetTime');
+
+  stepsEl.textContent = offsetMins === 0 ? '0m' : (offsetMins > 0 ? '+' + offsetMins + 'm' : offsetMins + 'm');
+  stepsEl.className = 'offset-steps ' + (timeOffsetSteps === 0 ? 'zero' : timeOffsetSteps > 0 ? 'positive' : 'negative');
+
+  // Show resulting time in user's selected timezone
+  const utcStart = SESSION_CONFIG[currentSession].utcStart;
+  timeEl.textContent = utcToUserTz(utcStart, offsetMins);
+}
+
+// ─── Range SL ────────────────────────────────────────────────────────────
+function onRangeSLToggle() {
+  const checked = document.getElementById('rangeSLCheck').checked;
+  const slInput = document.getElementById('slInput');
+  const lockBtn = document.getElementById('lockBtn');
+
+  if (checked) {
+    slInput.disabled = true;
+    slInput.classList.add('range-mode');
+    slInput.setAttribute('data-prev', slInput.value);
+    slInput.value = '';
+    slInput.placeholder = 'Range';
+    lockBtn.classList.add('disabled');
+    if (tpslLinked) { tpslLinked = false; lockBtn.classList.add('unlinked'); document.getElementById('lockIcon').innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`; }
+  } else {
+    slInput.disabled = false;
+    slInput.classList.remove('range-mode');
+    slInput.value = slInput.getAttribute('data-prev') || 20;
+    slInput.placeholder = '';
+    lockBtn.classList.remove('disabled');
+  }
+  reprocessData();
+}
+
 // ─── TP/SL Lock ──────────────────────────────────────────────────────────
 let tpslLinked = true;
 
@@ -760,14 +1166,27 @@ function reprocessData() {
   if (!rawData) return;
   const tp          = parseFloat(document.getElementById('tpInput').value) || 20;
   const sl          = parseFloat(document.getElementById('slInput').value) || 20;
+  const useRangeSL  = document.getElementById('rangeSLCheck').checked;
   const openingMins = parseInt(document.getElementById('openingFilter').value) || 15;
   const closingMins = parseInt(document.getElementById('closingFilter').value) || 5;
   const byDate      = groupByDate(rawData);
   const dates       = Object.keys(byDate).sort();
 
   results = [];
-  for (const d of dates) {
-    const r = processDay(byDate[d], d, tp, sl, currentSession, openingMins, closingMins);
+  for (let i = 0; i < dates.length; i++) {
+    const d    = dates[i];
+    const prev = dates[i - 1];
+    // Detect if session start falls on prev calendar day in CT
+    const utcStart   = SESSION_CONFIG[currentSession].utcStart;
+    const [uh, um]   = utcStart.split(':').map(Number);
+    const offsetMins = (timeOffsetSteps || 0) * 30;
+    const ctMins     = uh * 60 + um + offsetMins + CSV_UTC_OFFSET * 60;
+    const ctWrapped  = ((ctMins % 1440) + 1440) % 1440;
+    const isOvernight = (ctMins < 0 || ctWrapped >= 720);
+    const candles = (isOvernight && prev)
+      ? [...(byDate[prev] || []), ...byDate[d]]
+      : byDate[d];
+    const r = processDay(candles, d, tp, sl, currentSession, openingMins, closingMins, timeOffsetSteps, useRangeSL);
     if (r) results.push(r);
   }
 
@@ -835,6 +1254,13 @@ function updateStats() {
   animateCounter(document.getElementById('s-losses'),  losses,  false, '');
   document.getElementById('s-winpct').textContent = winPct !== null ? winPct.toFixed(1) + '%' : '—';
 
+  // Flip Win %
+  const flips     = fr.filter(r => r.flip === 'Yes');
+  const flipWins  = flips.filter(r => r.flipWin === 'Win').length;
+  const flipWinPct = flips.length ? (flipWins / flips.length * 100) : null;
+  animateCounter(document.getElementById('s-flips'), flips.length, false, '');
+  document.getElementById('s-flipwinpct').textContent = flipWinPct !== null ? flipWinPct.toFixed(1) + '%' : '—';
+
   // Sparkline
   const sparkRow = document.getElementById('sparklineRow');
   const sparkEl  = document.getElementById('sparkline');
@@ -883,6 +1309,12 @@ function renderTable() {
     const breakDirPill = r.breakDir ? pill(r.breakDir, r.breakDir.toUpperCase()) : `<span class="no-breakout">No breakout</span>`;
     const timeBadge    = r.minutesToBreak !== null ? `<span class="time-badge">${r.minutesToBreak}m</span>` : `<span style="color:var(--muted);font-size:12px;">—</span>`;
     const wlPill       = r.winLoss ? pill(r.winLoss, r.winLoss.toUpperCase()) : `<span style="color:var(--muted);font-size:12px;">—</span>`;
+    const flipPill     = r.winLoss !== 'Loss'
+      ? `<span style="color:var(--muted);font-size:12px;">—</span>`
+      : r.flip === 'Yes' ? pill('yes', 'YES') : r.flip === 'No' ? pill('no', 'NO') : `<span style="color:var(--muted);font-size:12px;">—</span>`;
+    const flipWinPill  = r.flipWin
+      ? pill(r.flipWin, r.flipWin.toUpperCase())
+      : `<span style="color:var(--muted);font-size:12px;">—</span>`;
 
     const rowClass = r.winLoss === 'Win' ? 'row-win' : r.winLoss === 'Loss' ? 'row-loss' : '';
     const delay    = Math.min(i * 18, 400);
@@ -895,6 +1327,8 @@ function renderTable() {
       <td>${breakDirPill}</td>
       <td>${timeBadge}</td>
       <td>${wlPill}</td>
+      <td>${flipPill}</td>
+      <td>${flipWinPill}</td>
     </tr>`;
   });
 
@@ -909,6 +1343,8 @@ function renderTable() {
           <th>Close</th>
           <th>Time</th>
           <th>Win / Loss</th>
+          <th>Flip</th>
+          <th>Flip Win</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -920,6 +1356,7 @@ function setSession(s) {
   currentSession = s;
   document.querySelectorAll('.session-tab').forEach(t => t.classList.remove('active'));
   event.currentTarget.classList.add('active');
+  updateOffsetDisplay();
   if (rawData) reprocessData();
 }
 
@@ -935,6 +1372,10 @@ document.getElementById('csvInput').addEventListener('change', function(e) {
   };
   reader.readAsText(file);
 });
+
+// Initialise offset time display and timezone labels
+updateTzDropdownLabels();
+updateOffsetDisplay();
 </script>
 </body>
 </html>
