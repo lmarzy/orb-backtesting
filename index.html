@@ -164,6 +164,61 @@
   .stat-card:nth-child(7) .stat-value { color: var(--accent-yellow); }
   .stat-card:nth-child(8) .stat-value { color: var(--accent-yellow); }
 
+  .stats-row-profit {
+    grid-template-columns: 1fr;
+    margin-top: -8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .profit-row-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .profit-row-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .profit-cards-wrap {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .profit-cards-wrap .stat-card {
+    margin: 0;
+  }
+  .flip-contribution {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.04em;
+  }
+  .flip-contribution.positive { background: rgba(45,212,160,0.1); color: var(--win); }
+  .flip-contribution.negative { background: rgba(247,95,110,0.1);  color: var(--loss); }
+
+  .flip-wl-badges { display: flex; align-items: center; gap: 6px; }
+  .flip-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.04em;
+  }
+  .flip-badge-win  { background: rgba(45,212,160,0.1); color: var(--win); }
+  .flip-badge-loss { background: rgba(247,95,110,0.1); color: var(--loss); }
+  .stat-card.profit    .stat-value { color: var(--win); }
+  .stat-card.loss-card .stat-value { color: var(--loss); }
+  .stat-card.neutral   .stat-value { color: var(--muted); }
+
   /* PANEL */
   .panel {
     background: var(--surface);
@@ -548,6 +603,7 @@
     opacity: 0.6;
   }
 
+
   .pill {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 4px 10px;
@@ -669,6 +725,31 @@
     <div class="stat-card"><div class="stat-value" id="s-flips">—</div><div class="stat-label">Flips</div></div>
     <div class="stat-card"><div class="stat-value" id="s-flipwinpct">—</div><div class="stat-label">Flip Win %</div></div>
   </div>
+  <div class="stats-row stats-row-profit" id="profitRow">
+    <div class="profit-row-header">
+      <span class="profit-row-title">Profitability</span>
+      <label class="range-sl-toggle" title="Include flip trades in P&L">
+        <input type="checkbox" id="includeFlipCheck" onchange="updateStats()">
+        <span>Include Flip</span>
+      </label>
+      <label class="range-sl-toggle" id="doubleFlipLabel" title="Double lot size on flip trade" style="opacity:0.4;pointer-events:none;">
+        <input type="checkbox" id="doubleFlipCheck" onchange="updateStats()">
+        <span>2× Flip</span>
+      </label>
+      <span class="flip-wl-badges" id="flipWLBadges" style="display:none">
+        <span class="flip-badge flip-badge-win" id="flipWinBadge">—W</span>
+        <span class="flip-badge flip-badge-loss" id="flipLossBadge">—L</span>
+      </span>
+      <span class="flip-contribution" id="flipContribution" style="display:none"></span>
+    </div>
+    <div class="profit-cards-wrap">
+      <div class="stat-card"><div class="stat-value" id="s-netpnl">—</div><div class="stat-label">Net P&amp;L (pts)</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-pf">—</div><div class="stat-label">Profit Factor</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-ev">—</div><div class="stat-label">EV / Trade (pts)</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-netpnl-usd">—</div><div class="stat-label">Net P&amp;L ($)</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-ev-usd">—</div><div class="stat-label">EV / Trade ($)</div></div>
+    </div>
+  </div>
   <div id="sparklineRow" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; margin-bottom:24px; display:flex; align-items:center; gap:12px;">
     <span style="font-size:10px;font-weight:600;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;flex-shrink:0;">Streak</span>
     <div class="sparkline" id="sparkline"></div>
@@ -738,6 +819,17 @@
           <button class="offset-btn" onclick="adjustOffset(1)">+</button>
         </div>
       </div>
+      <div class="filter-group">
+        <div class="filter-label">Contract Type</div>
+        <select class="filter-select" id="contractType" onchange="updateStats()" style="min-width:120px;">
+          <option value="20">NQ Mini ($20/pt)</option>
+          <option value="2" selected>NQ Micro ($2/pt)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Contracts</div>
+        <input type="number" class="filter-input" id="contracts" value="1" min="1" oninput="updateStats()" style="width:70px;">
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -791,15 +883,10 @@ function getUserTzOffset(utcDate) {
   return getIANAOffsetMins(tz, utcDate || new Date()) / 60;
 }
 
-// Convert a UTC HH:MM to user's local display time, DST-aware
-function utcToUserTz(utcHHMM, extraMins, refDateStr) {
+// Show session times always in UTC — sessions are defined in UTC and don't shift with DST
+function utcToUserTz(utcHHMM, extraMins) {
   const [h, m] = utcHHMM.split(':').map(Number);
-  // Build a reference UTC date to compute the correct DST offset
-  const refDate = refDateStr
-    ? new Date(`${refDateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00Z`)
-    : new Date();
-  const userOffsetMins = getIANAOffsetMins(document.getElementById('tzSelect').value, refDate);
-  const totalMins = ((h * 60 + m + userOffsetMins + (extraMins || 0)) % 1440 + 1440) % 1440;
+  const totalMins = ((h * 60 + m + (extraMins || 0)) % 1440 + 1440) % 1440;
   return `${String(Math.floor(totalMins / 60)).padStart(2,'0')}:${String(totalMins % 60).padStart(2,'0')}`;
 }
 
@@ -978,12 +1065,27 @@ function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMin
   // Minutes from LOR end to entry
   const minutesToBreak = Math.round((breakCandle.endDt - lorEnd) / 60000);
 
-  // Check 1-min candles after entry
+  // Next closing-timeframe candle after breakout — did it continue or reverse?
+  const nextBars = buildNMin(candles1m.filter(c => c.dt > breakCandle.endDt), closingMins);
+  let nextCandle = null;
+  if (nextBars.length > 0) nextCandle = nextBars[0];
+  const nextDir = nextCandle
+    ? (nextCandle.close > nextCandle.open ? 'Continued' : 'Reversed')
+    : null;
+
+  // Check 1-min candles after entry — track MAE (max adverse excursion)
   const afterEntry = candles1m.filter(c => c.dt > breakCandle.endDt);
   let winLoss = null;
+  let mae = 0;
+  let bestPullbackPrice = null; // best possible pullback entry price
   for (const c of afterEntry) {
     const tpHit = isLong ? c.high >= tpPrice : c.low  <= tpPrice;
     const slHit = isLong ? c.low  <= slPrice : c.high >= slPrice;
+    const adverse = isLong ? Math.max(0, entry - c.low) : Math.max(0, c.high - entry);
+    if (adverse > mae) {
+      mae = adverse;
+      bestPullbackPrice = isLong ? c.low : c.high;
+    }
     if (tpHit && slHit) { winLoss = 'Loss'; break; }
     if (tpHit)           { winLoss = 'Win';  break; }
     if (slHit)           { winLoss = 'Loss'; break; }
@@ -1041,7 +1143,7 @@ function processDay(candles1m, dateStr, tp, sl, session, openingMins, closingMin
   return {
     dateStr: displayDateStr, rangeHigh, rangeLow, range: rangeHigh - rangeLow,
     lorDir, breakDir, breakCandle, entry, tpPrice, slPrice,
-    winLoss, minutesToBreak, flip, flipWin
+    winLoss, minutesToBreak, nextDir, mae, bestPullbackPrice, flip, flipWin
   };
 }
 
@@ -1120,15 +1222,15 @@ function onRangeSLToggle() {
     slInput.disabled = true;
     slInput.classList.add('range-mode');
     slInput.setAttribute('data-prev', slInput.value);
-    slInput.value = '';
-    slInput.placeholder = 'Range';
+    slInput.type = 'text';
+    slInput.value = 'Varies';
     lockBtn.classList.add('disabled');
     if (tpslLinked) { tpslLinked = false; lockBtn.classList.add('unlinked'); document.getElementById('lockIcon').innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`; }
   } else {
     slInput.disabled = false;
     slInput.classList.remove('range-mode');
+    slInput.type = 'number';
     slInput.value = slInput.getAttribute('data-prev') || 20;
-    slInput.placeholder = '';
     lockBtn.classList.remove('disabled');
   }
   reprocessData();
@@ -1261,6 +1363,90 @@ function updateStats() {
   animateCounter(document.getElementById('s-flips'), flips.length, false, '');
   document.getElementById('s-flipwinpct').textContent = flipWinPct !== null ? flipWinPct.toFixed(1) + '%' : '—';
 
+  const tp         = parseFloat(document.getElementById('tpInput').value) || 20;
+  const sl         = parseFloat(document.getElementById('slInput').value) || 20;
+  const useRangeSL = document.getElementById('rangeSLCheck').checked;
+  const inclFlip   = document.getElementById('includeFlipCheck').checked;
+  const doubleFlip = inclFlip && document.getElementById('doubleFlipCheck').checked;
+  const flipMult   = doubleFlip ? 2 : 1;
+
+  // Enable/disable 2x toggle based on include flip
+  const doubleFlipLabel = document.getElementById('doubleFlipLabel');
+  doubleFlipLabel.style.opacity       = inclFlip ? '1' : '0.4';
+  doubleFlipLabel.style.pointerEvents = inclFlip ? 'auto' : 'none';
+  if (!inclFlip) document.getElementById('doubleFlipCheck').checked = false;
+
+  let totalWinPts = 0, totalLossPts = 0, totalTrades = 0;
+  let flipWinPts  = 0, flipLossPts  = 0;
+
+  for (const r of withBreak) {
+    const slPts = useRangeSL ? r.range : sl;
+    if (r.winLoss === 'Win')  { totalWinPts  += tp;    totalTrades++; }
+    if (r.winLoss === 'Loss') { totalLossPts += slPts; totalTrades++; }
+
+    // Add flip trade contribution
+    if (inclFlip && r.flip === 'Yes') {
+      totalTrades++;
+      if (r.flipWin === 'Win')  { totalWinPts  += tp    * flipMult; flipWinPts  += tp    * flipMult; }
+      if (r.flipWin === 'Loss') { totalLossPts += slPts * flipMult; flipLossPts += slPts * flipMult; }
+    }
+  }
+
+  const netPnl = totalWinPts - totalLossPts;
+  const pf     = totalLossPts > 0 ? totalWinPts / totalLossPts : totalWinPts > 0 ? Infinity : null;
+  const ev     = totalTrades > 0 ? netPnl / totalTrades : null;
+
+  // Show flip contribution badge
+  const flipContrib    = flipWinPts - flipLossPts;
+  const flipContribEl  = document.getElementById('flipContribution');
+  const flipWLBadges   = document.getElementById('flipWLBadges');
+  const flipWinBadge   = document.getElementById('flipWinBadge');
+  const flipLossBadge  = document.getElementById('flipLossBadge');
+
+  if (inclFlip && (flipWinPts > 0 || flipLossPts > 0)) {
+    flipContribEl.style.display = 'inline-block';
+    const flipLabel = doubleFlip ? 'Flip 2×' : 'Flip';
+    flipContribEl.textContent   = `${flipLabel}: ${flipContrib >= 0 ? '+' : ''}${flipContrib.toFixed(0)} pts`;
+    flipContribEl.className     = 'flip-contribution ' + (flipContrib >= 0 ? 'positive' : 'negative');
+    flipWLBadges.style.display  = 'flex';
+    flipWinBadge.textContent    = `${flipWins}W`;
+    flipLossBadge.textContent   = `${flips.length - flipWins}L`;
+  } else {
+    flipContribEl.style.display = 'none';
+    flipWLBadges.style.display  = 'none';
+  }
+
+  // Net P&L
+  const pnlEl = document.getElementById('s-netpnl');
+  pnlEl.textContent = netPnl !== 0 ? (netPnl > 0 ? '+' : '') + netPnl.toFixed(1) : '0';
+  pnlEl.closest('.stat-card').className = 'stat-card ' + (netPnl > 0 ? 'profit' : netPnl < 0 ? 'loss-card' : 'neutral');
+
+  // Profit Factor
+  const pfEl = document.getElementById('s-pf');
+  pfEl.textContent = pf === null ? '—' : pf === Infinity ? '∞' : pf.toFixed(2);
+  pfEl.closest('.stat-card').className = 'stat-card ' + (pf === null ? 'neutral' : pf >= 1 ? 'profit' : 'loss-card');
+
+  // EV per trade
+  const evEl = document.getElementById('s-ev');
+  evEl.textContent = ev !== null ? (ev > 0 ? '+' : '') + ev.toFixed(1) : '—';
+  evEl.closest('.stat-card').className = 'stat-card ' + (ev === null ? 'neutral' : ev > 0 ? 'profit' : 'loss-card');
+
+  // Dollar values
+  const dpp        = parseFloat(document.getElementById('contractType').value) || 20;
+  const contracts  = parseFloat(document.getElementById('contracts').value) || 1;
+  const multiplier = dpp * contracts;
+  const fmt = v => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  const pnlUsdEl = document.getElementById('s-netpnl-usd');
+  const pnlUsd = netPnl * multiplier;
+  pnlUsdEl.textContent = (pnlUsd > 0 ? '+' : pnlUsd < 0 ? '-' : '') + fmt(pnlUsd);
+  pnlUsdEl.closest('.stat-card').className = 'stat-card ' + (pnlUsd > 0 ? 'profit' : pnlUsd < 0 ? 'loss-card' : 'neutral');
+
+  const evUsdEl = document.getElementById('s-ev-usd');
+  const evUsd = ev !== null ? ev * multiplier : null;
+  evUsdEl.textContent = evUsd !== null ? (evUsd > 0 ? '+' : evUsd < 0 ? '-' : '') + fmt(evUsd) : '—';
+  evUsdEl.closest('.stat-card').className = 'stat-card ' + (evUsd === null ? 'neutral' : evUsd > 0 ? 'profit' : 'loss-card');
+
   // Sparkline
   const sparkRow = document.getElementById('sparklineRow');
   const sparkEl  = document.getElementById('sparkline');
@@ -1303,11 +1489,13 @@ function renderTable() {
     const dt      = new Date(r.dateStr + 'T12:00:00');
     const dayName = DAYS[dt.getDay()];
     const dateNum = dt.getDate();
+    const monthName = new Date(dt).toLocaleString('default', { month: 'short' });
     const rangeCell = `<span class="range-num">${r.range.toFixed(2)}</span>`;
 
     const lorDirPill   = pill(r.lorDir, r.lorDir.toUpperCase());
     const breakDirPill = r.breakDir ? pill(r.breakDir, r.breakDir.toUpperCase()) : `<span class="no-breakout">No breakout</span>`;
     const timeBadge    = r.minutesToBreak !== null ? `<span class="time-badge">${r.minutesToBreak}m</span>` : `<span style="color:var(--muted);font-size:12px;">—</span>`;
+    const nextPill     = r.nextDir === 'Continued' ? pill('win', 'Continued') : r.nextDir === 'Reversed' ? pill('loss', 'Reversed') : `<span style="color:var(--muted);font-size:12px;">—</span>`;
     const wlPill       = r.winLoss ? pill(r.winLoss, r.winLoss.toUpperCase()) : `<span style="color:var(--muted);font-size:12px;">—</span>`;
     const flipPill     = r.winLoss !== 'Loss'
       ? `<span style="color:var(--muted);font-size:12px;">—</span>`
@@ -1321,11 +1509,12 @@ function renderTable() {
 
     rows += `<tr class="${rowClass}" style="animation-delay:${delay}ms">
       <td class="day-name">${dayName}</td>
-      <td class="date-num">${dateNum}</td>
+      <td class="date-num">${dateNum} ${monthName}</td>
       <td class="range-cell">${rangeCell}</td>
       <td>${lorDirPill}</td>
       <td>${breakDirPill}</td>
       <td>${timeBadge}</td>
+      <td>${nextPill}</td>
       <td>${wlPill}</td>
       <td>${flipPill}</td>
       <td>${flipWinPill}</td>
@@ -1342,6 +1531,7 @@ function renderTable() {
           <th>15M Direction</th>
           <th>Close</th>
           <th>Time</th>
+          <th>Next Candle</th>
           <th>Win / Loss</th>
           <th>Flip</th>
           <th>Flip Win</th>
